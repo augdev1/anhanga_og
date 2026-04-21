@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - ANHANGÁ</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
+  <style>
+    .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
+    body { font-family: 'Manrope', sans-serif; background: #001710; color: #c5ebdb; }
+    .bg-surface { background: #0c3026; }
+    .text-primary { color: #98d3b7; }
+    .bg-primary { background: #98d3b7; }
+    .text-error { color: #ff6b6b; }
+    .bg-error { background: #ff6b6b; }
+    .border-primary { border-color: #98d3b7; }
+  </style>
+</head>
+<body class="min-h-screen pb-24">
+
+  <!-- Header -->
+  <header class="fixed top-0 z-50 flex h-16 w-full items-center justify-between bg-[#001710]/80 px-4 sm:px-6 backdrop-blur-xl">
+    <div class="flex items-center gap-3">
+      <div class="h-10 w-10 rounded-full border border-[#98d3b7]/20 bg-[#003021] flex items-center justify-center">
+        <span class="material-symbols-outlined text-[#98d3b7]">admin_panel_settings</span>
+      </div>
+      <span class="font-bold text-lg text-[#98d3b7]">Painel Admin</span>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <!-- User dropdown -->
+      <div class="relative">
+        <button id="userMenuBtn" class="hidden items-center gap-1.5 rounded-full bg-[#183b30]/60 px-3 py-1.5 text-xs font-semibold text-[#98d3b7] hover:bg-[#183b30]/80 transition-all">
+          <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">person</span>
+          <span id="userBadgeName"></span>
+          <span class="material-symbols-outlined text-sm">expand_more</span>
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div id="userDropdown" class="hidden absolute right-0 top-full mt-2 w-48 rounded-xl bg-[#0c3026] border border-[#98d3b7]/20 shadow-xl py-2 z-50">
+          <div class="px-4 py-2 border-b border-[#98d3b7]/10">
+            <p id="dropdownUserName" class="font-semibold text-[#98d3b7] text-sm"></p>
+            <p id="dropdownUserType" class="text-xs text-[#8b928e]"></p>
+          </div>
+
+          <a href="./perfil.html" class="flex items-center gap-2 px-4 py-2 text-sm text-[#c5ebdb] hover:bg-[#183b30]/60 transition-colors">
+            <span class="material-symbols-outlined text-sm">person</span>
+            Meu Perfil
+          </a>
+
+          <a href="./mapa.html" class="flex items-center gap-2 px-4 py-2 text-sm text-[#c5ebdb] hover:bg-[#183b30]/60 transition-colors">
+            <span class="material-symbols-outlined text-sm">map</span>
+            Mapa
+          </a>
+
+          <div class="border-t border-[#98d3b7]/10 mt-1 pt-1">
+            <button id="dropdownLogoutBtn" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#ff6b6b] hover:bg-[#183b30]/60 transition-colors">
+              <span class="material-symbols-outlined text-sm">logout</span>
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="pt-24 px-4 sm:px-6 max-w-4xl mx-auto">
+
+    <!-- Not Admin Message -->
+    <div id="notAdminMsg" class="hidden bg-[#450a0a] rounded-2xl p-6 text-center">
+      <span class="material-symbols-outlined text-4xl text-[#ff6b6b] mb-2">block</span>
+      <h2 class="text-xl font-bold text-[#ff6b6b]">Acesso Restrito</h2>
+      <p class="text-[#c5ebdb]/70 mt-2">Apenas administradores podem acessar esta página.</p>
+      <a href="./mapa.html" class="inline-block mt-4 px-4 py-2 bg-[#183b30] rounded-lg text-[#98d3b7] hover:opacity-80">
+        Voltar ao Mapa
+      </a>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingMsg" class="text-center py-12">
+      <span class="material-symbols-outlined text-4xl animate-spin">refresh</span>
+      <p class="mt-2 text-[#8b928e]">Verificando permissões...</p>
+    </div>
+
+    <!-- Admin Content -->
+    <div id="adminContent" class="hidden space-y-6">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div class="bg-[#0c3026] rounded-xl p-4 text-center">
+          <p class="text-xs text-[#8b928e] uppercase">Total</p>
+          <p id="totalUsers" class="text-2xl font-bold text-[#98d3b7]">0</p>
+        </div>
+        <div class="bg-[#0c3026] rounded-xl p-4 text-center">
+          <p class="text-xs text-[#8b928e] uppercase">Pendentes</p>
+          <p id="pendingUsers" class="text-2xl font-bold text-[#f59e0b]">0</p>
+        </div>
+        <div class="bg-[#0c3026] rounded-xl p-4 text-center">
+          <p class="text-xs text-[#8b928e] uppercase">Ativos</p>
+          <p id="activeUsers" class="text-2xl font-bold text-[#c5ebdb]">0</p>
+        </div>
+        <div class="bg-[#0c3026] rounded-xl p-4 text-center">
+          <p class="text-xs text-[#8b928e] uppercase">Especiais</p>
+          <p id="specialUsers" class="text-2xl font-bold text-[#ebc165]">0</p>
+        </div>
+        <div class="bg-[#0c3026] rounded-xl p-4 text-center">
+          <p class="text-xs text-[#8b928e] uppercase">Hoje</p>
+          <p id="todayUsers" class="text-2xl font-bold text-[#86efac]">0</p>
+        </div>
+      </div>
+
+      <!-- Users List -->
+      <div class="bg-[#0c3026] rounded-2xl p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">people</span>
+            Usuários
+          </h2>
+          <button onclick="loadUsers()" class="h-10 w-10 flex items-center justify-center rounded-full bg-[#183b30] text-[#98d3b7] hover:opacity-80">
+            <span class="material-symbols-outlined">refresh</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-[#98d3b7]/20 text-xs uppercase text-[#8b928e]">
+                <th class="py-3 px-2">ID</th>
+                <th class="py-3 px-2">Nome</th>
+                <th class="py-3 px-2">Username</th>
+                <th class="py-3 px-2">Tipo</th>
+                <th class="py-3 px-2">Criado</th>
+                <th class="py-3 px-2">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable" class="text-sm">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <p id="emptyMsg" class="hidden text-center py-8 text-[#8b928e]">Nenhum usuário encontrado</p>
+      </div>
+
+      <!-- Reports List -->
+      <div class="bg-[#0c3026] rounded-2xl p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#ef4444]">local_fire_department</span>
+            Reportes de Queimadas
+          </h2>
+          <button onclick="loadReports()" class="h-10 w-10 flex items-center justify-center rounded-full bg-[#183b30] text-[#98d3b7] hover:opacity-80">
+            <span class="material-symbols-outlined">refresh</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-[#98d3b7]/20 text-xs uppercase text-[#8b928e]">
+                <th class="py-3 px-2">ID</th>
+                <th class="py-3 px-2">Usuário</th>
+                <th class="py-3 px-2">Nível</th>
+                <th class="py-3 px-2">Fonte</th>
+                <th class="py-3 px-2">Data</th>
+                <th class="py-3 px-2">Localização</th>
+                <th class="py-3 px-2">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTable" class="text-sm">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <p id="emptyReportsMsg" class="hidden text-center py-8 text-[#8b928e]">Nenhum reporte encontrado</p>
+      </div>
+
+      <!-- Online Users & Activities Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Online Users -->
+        <div class="bg-[#0c3026] rounded-2xl p-4 sm:p-6 border border-[#98d3b7]/10">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+              <span class="material-symbols-outlined text-green-400 animate-pulse">online_prediction</span>
+              Usuários Online
+              <span id="onlineCount" class="ml-2 px-2.5 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold">0</span>
+            </h2>
+            <div class="flex items-center gap-2">
+              <span id="onlineStatus" class="text-[10px] text-green-400 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                Ao vivo
+              </span>
+              <button onclick="loadOnlineUsers()" class="h-10 w-10 flex items-center justify-center rounded-full bg-[#183b30] text-[#98d3b7] hover:opacity-80 transition-all active:scale-95">
+                <span class="material-symbols-outlined">refresh</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="onlineUsersList" class="space-y-2 max-h-80 overflow-y-auto">
+            <!-- Populated by JS -->
+          </div>
+
+          <p id="onlineEmptyMsg" class="hidden text-center py-8 text-[#8b928e]">
+            <span class="material-symbols-outlined text-4xl mb-2 block">person_off</span>
+            Nenhum usuário online
+          </p>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="bg-[#0c3026] rounded-2xl p-4 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#ebc165]">history</span>
+              Atividades Recentes
+            </h2>
+            <button onclick="loadActivities()" class="h-10 w-10 flex items-center justify-center rounded-full bg-[#183b30] text-[#98d3b7] hover:opacity-80">
+              <span class="material-symbols-outlined">refresh</span>
+            </button>
+          </div>
+
+          <div id="activitiesList" class="space-y-2 max-h-80 overflow-y-auto">
+            <!-- Populated by JS -->
+          </div>
+
+          <p id="activitiesEmptyMsg" class="hidden text-center py-8 text-[#8b928e]">Nenhuma atividade registrada</p>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around rounded-t-[1.5rem] border-t border-[#98d3b7]/15 bg-[#183b30]/60 px-2 pb-4 pt-3 backdrop-blur-xl sm:px-4 sm:pb-6 md:bottom-4 md:left-1/2 md:w-auto md:min-w-[520px] md:max-w-[90vw] md:-translate-x-1/2 md:rounded-2xl md:border md:border-[#98d3b7]/20 md:px-5 md:pb-3 md:pt-2">
+    <a href="./mapa.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#98d3b7]">
+      <span class="material-symbols-outlined">map</span>
+      <span class="text-[9px] sm:text-[10px]">Mapa</span>
+    </a>
+    <a href="./insights.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#98d3b7]">
+      <span class="material-symbols-outlined">analytics</span>
+      <span class="text-[9px] sm:text-[10px]">Insights</span>
+    </a>
+    <a href="./monitoramento.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#98d3b7]">
+      <span class="material-symbols-outlined">videocam</span>
+      <span class="text-[9px] sm:text-[10px]">Ao Vivo</span>
+    </a>
+    <a href="./reportar.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#ef4444]">
+      <span class="material-symbols-outlined">report</span>
+      <span class="text-[9px] sm:text-[10px]">Reportar</span>
+    </a>
+    <a href="./login.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#98d3b7]">
+      <span class="material-symbols-outlined">login</span>
+      <span class="text-[9px] sm:text-[10px]">Login</span>
+    </a>
+  </nav>
+
+  <script>
+    const API_BASE = "/api";
+    const token = localStorage.getItem("ANHANGA_TOKEN") || "";
+    let user = null;
+    try { user = JSON.parse(localStorage.getItem("ANHANGA_USER") || "null"); } catch(_) {}
+
+    // Verificar autenticação
+    if (!token) {
+      window.location.href = "login.html";
+    }
+
+    // Mostrar user dropdown
+    const userMenuBtn = document.getElementById("userMenuBtn");
+    const userDropdown = document.getElementById("userDropdown");
+    const userBadgeName = document.getElementById("userBadgeName");
+    const dropdownUserName = document.getElementById("dropdownUserName");
+    const dropdownUserType = document.getElementById("dropdownUserType");
+    const dropdownLogoutBtn = document.getElementById("dropdownLogoutBtn");
+
+    if (user && token) {
+      userMenuBtn.classList.remove("hidden");
+      userMenuBtn.classList.add("flex");
+      userBadgeName.textContent = user.name || user.username || "Usuário";
+      dropdownUserName.textContent = user.name || user.username || "Usuário";
+      dropdownUserType.textContent = user.user_type === 2 ? "Especial" : user.user_type === 1 ? "Ativo" : "Pendente";
+    }
+
+    // Toggle dropdown
+    userMenuBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      userDropdown.classList.toggle("hidden");
+    });
+
+    // Fechar dropdown ao clicar fora
+    document.addEventListener("click", () => {
+      userDropdown.classList.add("hidden");
+    });
+
+    // Logout
+    dropdownLogoutBtn?.addEventListener("click", async () => {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } catch(_) {}
+      localStorage.removeItem("ANHANGA_TOKEN");
+      localStorage.removeItem("ANHANGA_USER");
+      window.location.href = "login.html";
+    });
+
+    // Verificar se é admin e carregar usuários
+    async function init() {
+      try {
+        const res = await fetch(`${API_BASE}/admin/users`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.status === 403) {
+          // Não é admin
+          document.getElementById("loadingMsg").classList.add("hidden");
+          document.getElementById("notAdminMsg").classList.remove("hidden");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Erro ao carregar dados");
+        }
+
+        document.getElementById("loadingMsg").classList.add("hidden");
+        document.getElementById("adminContent").classList.remove("hidden");
+
+        loadUsers();
+        loadReports();
+        loadOnlineUsers();
+        loadActivities();
+      } catch (err) {
+        document.getElementById("loadingMsg").classList.add("hidden");
+        document.getElementById("notAdminMsg").classList.remove("hidden");
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await fetch(`${API_BASE}/admin/users`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("Erro ao carregar usuários");
+
+        const data = await res.json();
+        const users = data.data || [];
+
+        // Atualizar stats (0=pendente, 1=ativo, 2=especial)
+        document.getElementById("totalUsers").textContent = users.length;
+        document.getElementById("pendingUsers").textContent = users.filter(u => u.user_type === 0).length;
+        document.getElementById("activeUsers").textContent = users.filter(u => u.user_type === 1).length;
+        document.getElementById("specialUsers").textContent = users.filter(u => u.user_type === 2).length;
+
+        const today = new Date().toISOString().split("T")[0];
+        document.getElementById("todayUsers").textContent = users.filter(u => u.created_at?.startsWith(today)).length;
+
+        // Preencher tabela
+        const tbody = document.getElementById("usersTable");
+        tbody.innerHTML = "";
+
+        if (users.length === 0) {
+          document.getElementById("emptyMsg").classList.remove("hidden");
+          return;
+        }
+
+        document.getElementById("emptyMsg").classList.add("hidden");
+
+        users.forEach(u => {
+          const tr = document.createElement("tr");
+          tr.className = "border-b border-[#98d3b7]/10 hover:bg-[#183b30]/50";
+
+          // Badge conforme user_type: 0=pendente, 1=ativo, 2=especial
+          let typeBadge;
+          if (u.user_type === 0) {
+            typeBadge = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#f59e0b]/20 text-[#f59e0b] text-xs font-medium"><span class="material-symbols-outlined text-xs">schedule</span>Pendente</span>';
+          } else if (u.user_type === 1) {
+            typeBadge = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#c5ebdb]/20 text-[#c5ebdb] text-xs font-medium"><span class="material-symbols-outlined text-xs">check_circle</span>Ativo</span>';
+          } else if (u.user_type === 2) {
+            typeBadge = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#ebc165]/20 text-[#ebc165] text-xs font-medium"><span class="material-symbols-outlined text-xs">star</span>Especial</span>';
+          } else {
+            typeBadge = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#8b928e]/20 text-[#8b928e] text-xs font-medium">Desconhecido</span>';
+          }
+
+          const created = u.created_at ? new Date(u.created_at).toLocaleDateString("pt-BR") : "-";
+
+          // Botões de ação conforme status
+          let actionBtn;
+          if (u.user_type === 0) {
+            // Pendente: mostrar botão Aprovar
+            actionBtn = `<button onclick="approveUser(${u.id}, '${u.username}')" class="h-8 px-3 rounded-lg bg-[#14532d] text-[#86efac] text-xs hover:opacity-80">Aprovar</button>`;
+          } else if (u.user_type === 1) {
+            // Ativo: mostrar botão Promover para especial
+            actionBtn = `<button onclick="promoteUser(${u.id}, '${u.username}')" class="h-8 px-3 rounded-lg bg-[#ebc165]/20 text-[#ebc165] text-xs hover:opacity-80">Promover</button>`;
+          } else if (u.user_type === 2) {
+            // Especial: mostrar botão Rebaixar para ativo
+            actionBtn = `<button onclick="demoteUser(${u.id}, '${u.username}')" class="h-8 px-3 rounded-lg bg-[#450a0a] text-[#ff6b6b] text-xs hover:opacity-80">Rebaixar</button>`;
+          }
+
+          tr.innerHTML = `
+            <td class="py-3 px-2 text-[#8b928e]">#${u.id}</td>
+            <td class="py-3 px-2 font-medium">${u.name || "-"}</td>
+            <td class="py-3 px-2 text-[#8b928e]">@${u.username}</td>
+            <td class="py-3 px-2">${typeBadge}</td>
+            <td class="py-3 px-2 text-[#8b928e] text-xs">${created}</td>
+            <td class="py-3 px-2">${actionBtn}</td>
+          `;
+
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Erro:", err);
+      }
+    }
+
+    async function approveUser(userId, username) {
+      if (!confirm(`Aprovar ${username}? Ele poderá acessar o sistema.`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/users/${userId}/approve`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.detail || "Erro ao aprovar usuário");
+          return;
+        }
+
+        alert(`Usuário ${username} aprovado com sucesso!`);
+        loadUsers();
+      } catch (err) {
+        alert("Erro ao aprovar usuário");
+      }
+    }
+
+    async function promoteUser(userId, username) {
+      if (!confirm(`Promover ${username} para tipo especial?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/users/${userId}/promote`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.detail || "Erro ao promover usuário");
+          return;
+        }
+
+        alert(`Usuário ${username} promovido com sucesso!`);
+        loadUsers();
+      } catch (err) {
+        alert("Erro ao promover usuário");
+      }
+    }
+
+    async function demoteUser(userId, username) {
+      if (!confirm(`Rebaixar ${username} para ativo?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/users/${userId}/demote`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.detail || "Erro ao rebaixar usuário");
+          return;
+        }
+
+        alert(`Usuário ${username} rebaixado com sucesso!`);
+        loadUsers();
+      } catch (err) {
+        alert("Erro ao rebaixar usuário");
+      }
+    }
+
+    async function loadReports() {
+      try {
+        const res = await fetch(`${API_BASE}/admin/reports`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("Erro ao carregar reportes");
+
+        const data = await res.json();
+        const reports = data.reports || [];
+
+        const tbody = document.getElementById("reportsTable");
+        tbody.innerHTML = "";
+
+        if (reports.length === 0) {
+          document.getElementById("emptyReportsMsg").classList.remove("hidden");
+          return;
+        }
+
+        document.getElementById("emptyReportsMsg").classList.add("hidden");
+
+        reports.forEach(r => {
+          const tr = document.createElement("tr");
+          tr.className = "border-b border-[#98d3b7]/10 hover:bg-[#183b30]/50";
+
+          // Badge conforme nível: alerta, suspeito, confirmado
+          let nivelBadge;
+          if (r.nivel === "alerta") {
+            nivelBadge = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#ebc165]/20 text-[#ebc165] text-xs font-medium">⚠ Alerta</span>';
+          } else if (r.nivel === "suspeito") {
+            nivelBadge = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#fb923c]/20 text-[#fb923c] text-xs font-medium">🟠 Suspeito</span>';
+          } else if (r.nivel === "confirmado") {
+            nivelBadge = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#dc2626]/20 text-[#dc2626] text-xs font-medium">🔥 Confirmado</span>';
+          } else {
+            nivelBadge = `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#8b928e]/20 text-[#8b928e] text-xs font-medium">${r.nivel}</span>`;
+          }
+
+          const date = r.created_at ? new Date(r.created_at).toLocaleString("pt-BR") : "-";
+          const location = `${r.latitude?.toFixed(4) || "-"}, ${r.longitude?.toFixed(4) || "-"}`;
+
+          tr.innerHTML = `
+            <td class="py-3 px-2 font-mono text-xs">${r.id}</td>
+            <td class="py-3 px-2">${r.username || "-"}</td>
+            <td class="py-3 px-2">${nivelBadge}</td>
+            <td class="py-3 px-2 text-xs">${r.fonte || "comunidade"}</td>
+            <td class="py-3 px-2 text-xs">${date}</td>
+            <td class="py-3 px-2 text-xs font-mono">${location}</td>
+            <td class="py-3 px-2">
+              <button onclick="deleteReport(${r.id})" class="h-8 px-3 rounded-lg bg-[#450a0a] text-[#ff6b6b] text-xs hover:opacity-80">
+                <span class="material-symbols-outlined text-sm">delete</span>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Erro ao carregar reportes:", err);
+      }
+    }
+
+    async function deleteReport(reportId) {
+      if (!confirm(`Tem certeza que deseja deletar o reporte #${reportId}?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/reports/${reportId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.detail || "Erro ao deletar reporte");
+          return;
+        }
+
+        alert(`Reporte #${reportId} deletado com sucesso!`);
+        loadReports();
+      } catch (err) {
+        alert("Erro ao deletar reporte");
+      }
+    }
+
+    // Armazenar último estado para detectar novos usuários
+    let lastOnlineUsers = [];
+
+    async function loadOnlineUsers() {
+      try {
+        const res = await fetch(`${API_BASE}/admin/online-users`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("Erro ao carregar usuários online");
+
+        const data = await res.json();
+        console.log("[DEBUG] Online users response:", data);
+
+        const users = data.users || [];
+
+        // Detectar novos usuários (que não estavam na lista anterior)
+        const currentUsernames = new Set(users.map(u => u.username));
+        const lastUsernames = new Set(lastOnlineUsers.map(u => u.username));
+        const newUsers = users.filter(u => !lastUsernames.has(u.username));
+
+        // Atualizar contador com animação se mudou
+        const countEl = document.getElementById("onlineCount");
+        const oldCount = parseInt(countEl.textContent);
+        countEl.textContent = users.length;
+
+        if (users.length !== oldCount) {
+          countEl.classList.add('scale-125');
+          setTimeout(() => countEl.classList.remove('scale-125'), 300);
+        }
+
+        const container = document.getElementById("onlineUsersList");
+        container.innerHTML = "";
+
+        if (users.length === 0) {
+          document.getElementById("onlineEmptyMsg").classList.remove("hidden");
+          document.getElementById("onlineStatus").classList.add("hidden");
+          lastOnlineUsers = [];
+          return;
+        }
+
+        document.getElementById("onlineEmptyMsg").classList.add("hidden");
+        document.getElementById("onlineStatus").classList.remove("hidden");
+
+        users.forEach((u, index) => {
+          const div = document.createElement("div");
+          const isNew = newUsers.some(nu => nu.username === u.username);
+
+          // Animação para novos usuários
+          div.className = `flex items-center gap-3 p-3 rounded-xl bg-[#183b30]/50 border border-transparent hover:border-[#98d3b7]/20 transition-all ${isNew ? 'animate-pulse bg-green-500/10 border-green-400/30' : ''}`;
+
+          // Foto do usuário com anel de status online
+          const fotoHtml = u.foto_url
+            ? `
+              <div class="relative">
+                <img src="${u.foto_url}" alt="${u.name}" class="w-11 h-11 rounded-full object-cover border-2 border-[#183b30]">
+                <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-400 border-2 border-[#0c3026]"></span>
+              </div>`
+            : `
+              <div class="relative">
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#98d3b7] to-[#2f6952] flex items-center justify-center text-[#0c3026] font-bold text-lg">${(u.name || u.username).charAt(0).toUpperCase()}</div>
+                <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-400 border-2 border-[#0c3026]"></span>
+              </div>`;
+
+          // Tempo relativo mais amigável
+          const lastActivity = new Date(u.last_activity);
+          const now = new Date();
+          const diffMs = now - lastActivity;
+          const diffMin = Math.floor(diffMs / 60000);
+          const diffSec = Math.floor(diffMs / 1000);
+
+          let timeText;
+          let timeClass = "text-[#8b928e]";
+
+          if (diffSec < 10) {
+            timeText = "🔵 online agora";
+            timeClass = "text-green-400 font-medium";
+          } else if (diffMin < 1) {
+            timeText = "🟢 online agora";
+            timeClass = "text-green-400";
+          } else if (diffMin < 5) {
+            timeText = `🟢 ativo há ${diffMin}min`;
+            timeClass = "text-green-400/80";
+          } else if (diffMin < 60) {
+            timeText = `⏱️ ativo há ${diffMin}min`;
+          } else if (diffMin < 1440) {
+            timeText = `⏱️ ativo há ${Math.floor(diffMin/60)}h`;
+          } else {
+            timeText = `⏱️ ativo há ${Math.floor(diffMin/1440)}d`;
+          }
+
+          div.innerHTML = `
+            ${fotoHtml}
+            <div class="flex-1 min-w-0">
+              <p class="font-medium truncate text-sm">${u.name || u.username}</p>
+              <p class="text-xs ${timeClass}">${u.username} • ${timeText}</p>
+            </div>
+            ${isNew ? '<span class="px-2 py-0.5 rounded-full bg-green-500 text-[#0c3026] text-[10px] font-bold">NOVO</span>' : ''}
+          `;
+
+          container.appendChild(div);
+        });
+
+        // Guardar estado atual
+        lastOnlineUsers = users;
+
+      } catch (err) {
+        console.error("Erro:", err);
+        document.getElementById("onlineStatus").innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+          <span class="text-red-400">Erro</span>
+        `;
+      }
+    }
+
+    async function loadActivities() {
+      try {
+        const res = await fetch(`${API_BASE}/admin/activities?limit=20`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("Erro ao carregar atividades");
+
+        const data = await res.json();
+        const activities = data.activities || [];
+
+        const container = document.getElementById("activitiesList");
+        container.innerHTML = "";
+
+        if (activities.length === 0) {
+          document.getElementById("activitiesEmptyMsg").classList.remove("hidden");
+          return;
+        }
+
+        document.getElementById("activitiesEmptyMsg").classList.add("hidden");
+
+        // Mapear ícones por ação
+        const actionIcons = {
+          "login": { icon: "login", color: "text-blue-400", bg: "bg-blue-400/20" },
+          "report_create": { icon: "report", color: "text-orange-400", bg: "bg-orange-400/20" },
+          "report_confirm": { icon: "verified", color: "text-green-400", bg: "bg-green-400/20" },
+          "report_delete": { icon: "delete", color: "text-red-400", bg: "bg-red-400/20" },
+          "logout": { icon: "logout", color: "text-red-400", bg: "bg-red-400/20" },
+          "profile_update": { icon: "person", color: "text-purple-400", bg: "bg-purple-400/20" }
+        };
+
+        activities.forEach(act => {
+          const div = document.createElement("div");
+          div.className = "flex items-start gap-3 p-2 rounded-lg hover:bg-[#183b30]/30";
+
+          const style = actionIcons[act.action] || { icon: "info", color: "text-[#8b928e]", bg: "bg-[#8b928e]/20" };
+
+          // Tempo relativo
+          const actTime = new Date(act.created_at);
+          const now = new Date();
+          const diffMs = now - actTime;
+          const diffMin = Math.floor(diffMs / 60000);
+          const timeText = diffMin < 1 ? "agora" : diffMin < 60 ? `${diffMin}min atrás` : diffMin < 1440 ? `${Math.floor(diffMin/60)}h atrás` : `${Math.floor(diffMin/1440)}d atrás`;
+
+          div.innerHTML = `
+            <div class="w-8 h-8 rounded-lg ${style.bg} ${style.color} flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-sm">${style.icon}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm">
+                <span class="font-medium">${act.username}</span>
+                <span class="text-[#8b928e]">${getActionText(act.action)}</span>
+              </p>
+              ${act.details ? `<p class="text-xs text-[#8b928e] truncate">${act.details}</p>` : ""}
+              <p class="text-xs text-[#8b928e] mt-0.5">${timeText}</p>
+            </div>
+          `;
+
+          container.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Erro:", err);
+      }
+    }
+
+    function getActionText(action) {
+      const texts = {
+        "login": "fez login",
+        "report_create": "reportou uma queimada",
+        "report_confirm": "confirmou um reporte",
+        "report_delete": "deletou um reporte",
+        "logout": "saiu do sistema",
+        "profile_update": "atualizou o perfil"
+      };
+      return texts[action] || action;
+    }
+
+    // Atualizar online users e atividades periodicamente
+    setInterval(() => {
+      if (token) {
+        loadOnlineUsers();
+        loadActivities();
+      }
+    }, 1000); // A cada 1 segundo
+
+    init();
+  </script>
+
+</body>
+</html>

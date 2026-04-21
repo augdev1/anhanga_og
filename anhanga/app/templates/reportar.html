@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reportar Queimada — ANHANGÁ</title>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "outline-variant": "#414845",
+            "on-surface": "#c5ebdb",
+            "surface-container-low": "#002118",
+            "surface-container-lowest": "#00120c",
+            "surface-container-highest": "#183b30",
+            "surface-container-high": "#0c3026",
+            "surface-container": "#00251b",
+            "on-surface-variant": "#c1c8c4",
+            "tertiary-container": "#372700",
+            "on-tertiary": "#3f2e00",
+            surface: "#001710",
+            background: "#001710",
+            primary: "#98d3b7",
+            "primary-container": "#003021",
+            "on-primary": "#003827",
+            tertiary: "#ebc165",
+            error: "#ffb4ab",
+            "error-container": "#93000a",
+            "on-error": "#690005",
+            outline: "#8b928e",
+          },
+          fontFamily: {
+            headline: ["Manrope"],
+            body: ["Manrope"],
+            label: ["Plus Jakarta Sans"],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    }
+    body { min-height: 100dvh; }
+
+    /* Upload drop zone */
+    #dropzone {
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #dropzone.drag-over {
+      border-color: #ebc165 !important;
+      background: rgba(235, 193, 101, 0.08) !important;
+    }
+
+    /* Preview foto */
+    #photoPreview {
+      transition: opacity 0.3s;
+    }
+
+    /* Mapa de seleção */
+    #pickMap {
+      height: 240px;
+      border-radius: 1rem;
+      overflow: hidden;
+    }
+
+    .leaflet-container {
+      background: #003021;
+      font-family: Manrope, sans-serif;
+    }
+    .leaflet-tile-pane {
+      filter: sepia(0.9) hue-rotate(62deg) saturate(1.8) brightness(0.72) contrast(1.05);
+    }
+    .leaflet-control-attribution {
+      background: rgba(0,23,16,0.8) !important;
+      color: #c5ebdb;
+      font-size: 10px;
+    }
+
+    /* Status badge */
+    .badge-alerta    { background:#372700; color:#ebc165; }
+    .badge-suspeito  { background:#422010; color:#fb923c; }
+    .badge-confirmado{ background:#450a0a; color:#fca5a5; }
+
+    /* Animação pulse do ícone de fogo */
+    @keyframes fire-pulse {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+    .fire-pulse { animation: fire-pulse 1.6s ease-in-out infinite; }
+
+    /* Progress steps */
+    .step-done  { background: #98d3b7; color: #003021; }
+    .step-active{ background: #ebc165; color: #261a00; }
+    .step-idle  { background: #183b30; color: #8b928e; }
+
+    /* Toast */
+    #toast {
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    #toast.hidden-toast {
+      transform: translateY(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body class="bg-background text-on-surface font-body pb-32 overflow-x-hidden">
+
+  <!-- ── HEADER ──────────────────────────────────────────────────────── -->
+  <header class="fixed top-0 z-50 flex h-16 w-full items-center justify-between bg-[#001710]/80 px-4 sm:px-6 backdrop-blur-xl border-b border-[#98d3b7]/10">
+    <div class="flex items-center gap-3">
+      <div class="h-10 w-10 overflow-hidden rounded-full border border-primary/20 bg-primary-container flex items-center justify-center">
+        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqopGSORSKiC2HXLsR1SGnSG_5HnbU0RAX5XmbrwGDrBhrM7Z3mfHuGOBjxkd0ll7k0vUUnufoDgVneJ3oqE7m9rcbZ8grNqQPMMM0y-S6K-kS2HnkLB1A3AQVvSNV955BIeeYJPrFcQUC0-haUcSSZJT8sGmLcTruvy1Gr785WyALUxRoqfpW2ajrSybRvjytI1U9he9qxbNXsh-HiaImNnxaMo6GQHzw7zsS9ffrWsNF3h7XbWqkeUt1HE2Dz_dnCdGBHCtVWi8"
+             alt="Logo" class="h-8 w-8 rounded-full object-cover" />
+      </div>
+      <span class="font-headline text-lg font-black tracking-tighter text-primary">ANHANGÁ</span>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- User dropdown -->
+      <div class="relative">
+        <button id="userMenuBtn" class="hidden items-center gap-1.5 rounded-full bg-[#183b30]/60 px-3 py-1.5 text-xs font-semibold text-[#98d3b7] hover:bg-[#183b30]/80 transition-all">
+          <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">person</span>
+          <span id="userBadgeName"></span>
+          <span class="material-symbols-outlined text-sm">expand_more</span>
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div id="userDropdown" class="hidden absolute right-0 top-full mt-2 w-48 rounded-xl bg-[#0c3026] border border-[#98d3b7]/20 shadow-xl py-2 z-50">
+          <div class="px-4 py-2 border-b border-[#98d3b7]/10">
+            <p id="dropdownUserName" class="font-semibold text-[#98d3b7] text-sm"></p>
+            <p id="dropdownUserType" class="text-xs text-[#8b928e]"></p>
+          </div>
+
+          <a href="./perfil.html" class="flex items-center gap-2 px-4 py-2 text-sm text-[#c5ebdb] hover:bg-[#183b30]/60 transition-colors">
+            <span class="material-symbols-outlined text-sm">person</span>
+            Meu Perfil
+          </a>
+
+          <a href="./mapa.html" class="flex items-center gap-2 px-4 py-2 text-sm text-[#c5ebdb] hover:bg-[#183b30]/60 transition-colors">
+            <span class="material-symbols-outlined text-sm">map</span>
+            Mapa
+          </a>
+
+          <div class="border-t border-[#98d3b7]/10 mt-1 pt-1">
+            <button id="dropdownLogoutBtn" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#ff6b6b] hover:bg-[#183b30]/60 transition-colors">
+              <span class="material-symbols-outlined text-sm">logout</span>
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAIN ────────────────────────────────────────────────────────── -->
+  <main class="pt-20 pb-6 px-4 sm:px-6 max-w-2xl mx-auto space-y-5">
+
+    <!-- Título + ícone de fogo -->
+    <section class="text-center py-4">
+      <div class="text-5xl fire-pulse mb-3">🔥</div>
+      <h1 class="font-headline text-2xl sm:text-3xl font-extrabold text-on-surface">Reportar Queimada</h1>
+      <p class="mt-2 text-sm text-on-surface-variant max-w-sm mx-auto">
+        Envie uma foto com a localização. Quando <strong class="text-tertiary">3 usuários</strong> reportarem o mesmo local, ele aparece no mapa como queimada verificada.
+      </p>
+    </section>
+
+    <!-- Steps indicador -->
+    <div class="flex items-center justify-center gap-2">
+      <div id="step1" class="step-active flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold">1</div>
+      <div class="h-px w-8 bg-surface-container-highest"></div>
+      <div id="step2" class="step-idle flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold">2</div>
+      <div class="h-px w-8 bg-surface-container-highest"></div>
+      <div id="step3" class="step-idle flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold">3</div>
+    </div>
+    <div class="flex justify-between text-[10px] uppercase tracking-widest text-on-surface-variant px-2">
+      <span>Foto</span><span class="ml-2">Localização</span><span>Enviar</span>
+    </div>
+
+    <!-- ── PASSO 1: Upload de foto ──────────────────────────────────── -->
+    <section id="sectionPhoto" class="bg-surface-container-high rounded-2xl p-5 shadow-xl space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-tertiary" style="font-variation-settings:'FILL' 1;">photo_camera</span>
+        <h2 class="font-headline text-base font-bold">Passo 1 — Foto da queimada</h2>
+      </div>
+
+      <!-- Drop zone -->
+      <div id="dropzone"
+           class="relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-8 cursor-pointer hover:border-primary/50 transition-colors"
+           onclick="document.getElementById('fileInput').click()">
+        <span class="material-symbols-outlined text-4xl text-on-surface-variant">upload_file</span>
+        <p class="text-sm font-medium text-on-surface-variant">Clique ou arraste a foto aqui</p>
+        <p class="text-xs text-on-surface-variant/60">JPG, PNG, WEBP — até 10 MB</p>
+        <input id="fileInput" type="file" accept="image/*" capture="environment" class="hidden" />
+      </div>
+
+      <!-- Preview -->
+      <div id="photoPreviewContainer" class="hidden">
+        <div class="relative">
+          <img id="photoPreview" src="" alt="Preview" class="w-full rounded-xl object-cover max-h-64" />
+          <button id="btnRemovePhoto"
+            class="absolute top-2 right-2 h-8 w-8 flex items-center justify-center rounded-full bg-[#001710]/70 text-error hover:bg-[#001710] active:scale-95">
+            <span class="material-symbols-outlined text-sm">close</span>
+          </button>
+          <div id="photoOkBadge"
+            class="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-[#14532d]/90 px-2.5 py-1 text-[11px] font-bold text-[#86efac]">
+            <span class="material-symbols-outlined text-xs" style="font-variation-settings:'FILL' 1;">check_circle</span>
+            Foto selecionada
+          </div>
+        </div>
+      </div>
+
+      <!-- Botão próximo passo -->
+      <button id="btnNextToLocation" disabled
+        class="w-full rounded-xl bg-tertiary py-3 text-sm font-bold text-on-tertiary disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95">
+        Próximo → Definir Localização
+      </button>
+    </section>
+
+    <!-- ── PASSO 2: Localização ─────────────────────────────────────── -->
+    <section id="sectionLocation" class="hidden bg-surface-container-high rounded-2xl p-5 shadow-xl space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">location_on</span>
+        <h2 class="font-headline text-base font-bold">Passo 2 — Localização da queimada</h2>
+      </div>
+
+      <!-- Botão GPS -->
+      <button id="btnGPS"
+        class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-container border border-primary/30 py-3 text-sm font-bold text-primary hover:opacity-90 active:scale-95">
+        <span class="material-symbols-outlined text-base">my_location</span>
+        Usar minha localização atual (GPS)
+      </button>
+
+      <div class="relative flex items-center gap-3 text-xs text-on-surface-variant">
+        <div class="flex-1 h-px bg-outline-variant/40"></div>
+        <span>ou marque no mapa</span>
+        <div class="flex-1 h-px bg-outline-variant/40"></div>
+      </div>
+
+      <!-- Mapa interativo para pin -->
+      <div>
+        <p class="mb-2 text-xs text-on-surface-variant">Toque/clique no mapa para marcar o local exato:</p>
+        <div id="pickMap"></div>
+      </div>
+
+      <!-- Coordenadas selecionadas -->
+      <div id="coordsDisplay" class="hidden flex items-center gap-3 rounded-xl bg-surface-container-low p-3">
+        <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings:'FILL' 1;">pin_drop</span>
+        <div>
+          <p class="text-[10px] uppercase tracking-widest text-on-surface-variant">Coordenadas</p>
+          <p id="coordsText" class="text-sm font-bold text-on-surface font-mono">—</p>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="btnBackToPhoto"
+          class="flex-1 rounded-xl border border-outline-variant py-3 text-sm font-bold text-on-surface-variant hover:opacity-80 active:scale-95">
+          ← Voltar
+        </button>
+        <button id="btnNextToSend" disabled
+          class="flex-[2] rounded-xl bg-tertiary py-3 text-sm font-bold text-on-tertiary disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95">
+          Próximo → Revisar e Enviar
+        </button>
+      </div>
+    </section>
+
+    <!-- ── PASSO 3: Revisão e envio ─────────────────────────────────── -->
+    <section id="sectionSend" class="hidden bg-surface-container-high rounded-2xl p-5 shadow-xl space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-error" style="font-variation-settings:'FILL' 1;">send</span>
+        <h2 class="font-headline text-base font-bold">Passo 3 — Revisão e Envio</h2>
+      </div>
+
+      <!-- Resumo -->
+      <div class="space-y-3">
+        <div class="flex gap-3">
+          <img id="reviewPhoto" src="" alt="Foto" class="h-20 w-24 rounded-xl object-cover shrink-0" />
+          <div class="space-y-1 min-w-0">
+            <p class="text-[10px] uppercase tracking-widest text-on-surface-variant">Foto</p>
+            <p id="reviewPhotoName" class="text-xs font-medium truncate text-on-surface">—</p>
+            <p class="text-[10px] uppercase tracking-widest text-on-surface-variant mt-2">Localização</p>
+            <p id="reviewCoords" class="text-xs font-bold font-mono text-primary">—</p>
+          </div>
+        </div>
+
+        <!-- Aviso de autenticação -->
+        <div id="authWarning" class="hidden items-center gap-2 rounded-xl bg-error-container/40 p-3">
+          <span class="material-symbols-outlined text-error text-lg" style="font-variation-settings:'FILL' 1;">warning</span>
+          <p class="text-xs text-error">Você precisa estar <a href="./login.html" class="underline font-bold">logado</a> para enviar um reporte.</p>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="btnBackToLocation"
+          class="flex-1 rounded-xl border border-outline-variant py-3 text-sm font-bold text-on-surface-variant hover:opacity-80 active:scale-95">
+          ← Voltar
+        </button>
+        <button id="btnSubmit"
+          class="flex-[2] rounded-xl bg-error py-3 text-sm font-bold text-on-error hover:opacity-90 active:scale-95 flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1;">local_fire_department</span>
+          Enviar Reporte
+        </button>
+      </div>
+    </section>
+
+    <!-- ── RESULTADO ────────────────────────────────────────────────── -->
+    <section id="sectionResult" class="hidden bg-surface-container-high rounded-2xl p-6 shadow-xl text-center space-y-4">
+      <div id="resultEmoji" class="text-5xl">🔥</div>
+      <h2 id="resultTitle" class="font-headline text-xl font-extrabold">Reporte enviado!</h2>
+      <p id="resultDesc" class="text-sm text-on-surface-variant"></p>
+
+      <!-- Badge de status -->
+      <div id="resultBadge"
+        class="inline-flex items-center gap-2 rounded-full px-4 py-2 font-bold text-sm badge-alerta">
+        <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1;">warning</span>
+        <span id="resultStatus">Alerta</span>
+      </div>
+
+      <!-- Barra de progresso de votos -->
+      <div>
+        <div class="flex justify-between text-xs text-on-surface-variant mb-1">
+          <span>Reportes deste local</span>
+          <span id="voteCountLabel">1 / 3</span>
+        </div>
+        <div class="h-3 w-full bg-surface-container rounded-full overflow-hidden">
+          <div id="voteBar" class="h-full bg-tertiary rounded-full transition-all duration-700" style="width: 33%"></div>
+        </div>
+        <p class="mt-1 text-[11px] text-on-surface-variant" id="voteHint">Faltam 2 reportes para confirmação</p>
+      </div>
+
+      <div class="flex gap-3 mt-2">
+        <button id="btnReportAnother"
+          class="flex-1 rounded-xl bg-surface-container-low py-3 text-sm font-bold text-on-surface-variant hover:opacity-80 active:scale-95">
+          Novo Reporte
+        </button>
+        <a href="./mapa.html"
+          class="flex-[2] rounded-xl bg-primary py-3 text-sm font-bold text-on-primary hover:opacity-90 active:scale-95 flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-base">map</span>
+          Ver no Mapa
+        </a>
+      </div>
+    </section>
+
+    <!-- ── LISTA DE REPORTES RECENTES ──────────────────────────────── -->
+    <section class="bg-surface-container-high rounded-2xl p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-headline text-base font-bold">Reportes Recentes</h3>
+        <button id="btnReloadList"
+          class="flex items-center gap-1 text-xs text-primary hover:opacity-80">
+          <span class="material-symbols-outlined text-sm">refresh</span>
+          Atualizar
+        </button>
+      </div>
+      <div id="reportList" class="space-y-2 max-h-72 overflow-y-auto">
+        <p id="listEmpty" class="text-sm text-center text-on-surface-variant py-4">Carregando...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── BOTTOM NAV ───────────────────────────────────────────────── -->
+  <nav class="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around rounded-t-[1.5rem] border-t border-[#98d3b7]/15 bg-[#183b30]/60 px-2 pb-4 pt-3 backdrop-blur-xl shadow-[0_-4px_40px_rgba(0,0,0,0.2)] sm:px-4 sm:pb-6 md:bottom-4 md:left-1/2 md:w-auto md:min-w-[520px] md:max-w-[90vw] md:-translate-x-1/2 md:rounded-2xl md:border md:border-[#98d3b7]/20 md:px-5 md:pb-3 md:pt-2">
+    <a href="./mapa.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#98d3b7]">
+      <span class="material-symbols-outlined">map</span>
+      <span class="text-[9px] sm:text-[10px]">Mapa</span>
+    </a>
+    <a href="./insights.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#98d3b7]">
+      <span class="material-symbols-outlined">analytics</span>
+      <span class="text-[9px] sm:text-[10px]">Insights</span>
+    </a>
+    <a href="./monitoramento.html" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#98d3b7]">
+      <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">videocam</span>
+      <span class="text-[9px] sm:text-[10px]">Ao Vivo</span>
+    </a>
+    <a href="./reportar.html" class="flex flex-col items-center justify-center rounded-xl bg-[#ebc165] px-3 py-1.5 text-[#3f2e00] active:scale-95">
+      <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">local_fire_department</span>
+      <span class="text-[9px] sm:text-[10px]">Reportar</span>
+    </a>
+    <button id="navLogoutBtn" class="flex flex-col items-center justify-center px-3 py-1.5 text-[#c1c8c4] hover:text-[#ff6b6b]">
+      <span class="material-symbols-outlined">logout</span>
+      <span class="text-[9px] sm:text-[10px]">Logout</span>
+    </button>
+  </nav>
+
+  <!-- ── TOAST ──────────────────────────────────────────────────────── -->
+  <div id="toast"
+    class="hidden-toast fixed bottom-24 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-2xl bg-surface-container-highest px-4 py-3 shadow-xl text-sm font-semibold text-on-surface min-w-[220px] justify-center">
+    <span id="toastIcon" class="material-symbols-outlined text-base">info</span>
+    <span id="toastMsg">Mensagem</span>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+  (() => {
+    const API_BASE = "/api";
+    const token    = localStorage.getItem("ANHANGA_TOKEN") || "";
+
+    // ── Proteção: Redirecionar se não autenticado ──────────────────
+    if (!token) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    let user = null;
+    try { user = JSON.parse(localStorage.getItem("ANHANGA_USER") || "null"); } catch(_) {}
+
+    // ── DOM refs ───────────────────────────────────────────────────────
+    const userBadge       = document.getElementById("userBadge");
+    const userBadgeName   = document.getElementById("userBadgeName");
+
+    const dropzone        = document.getElementById("dropzone");
+    const fileInput       = document.getElementById("fileInput");
+    const previewContainer= document.getElementById("photoPreviewContainer");
+    const photoPreview    = document.getElementById("photoPreview");
+    const btnRemovePhoto  = document.getElementById("btnRemovePhoto");
+    const btnNextToLoc    = document.getElementById("btnNextToLocation");
+
+    const sectionPhoto    = document.getElementById("sectionPhoto");
+    const sectionLocation = document.getElementById("sectionLocation");
+    const sectionSend     = document.getElementById("sectionSend");
+    const sectionResult   = document.getElementById("sectionResult");
+
+    const step1 = document.getElementById("step1");
+    const step2 = document.getElementById("step2");
+    const step3 = document.getElementById("step3");
+
+    const btnGPS          = document.getElementById("btnGPS");
+    const coordsDisplay   = document.getElementById("coordsDisplay");
+    const coordsText      = document.getElementById("coordsText");
+    const btnNextToSend   = document.getElementById("btnNextToSend");
+    const btnBackToPhoto  = document.getElementById("btnBackToPhoto");
+
+    const reviewPhoto     = document.getElementById("reviewPhoto");
+    const reviewPhotoName = document.getElementById("reviewPhotoName");
+    const reviewCoords    = document.getElementById("reviewCoords");
+    const authWarning     = document.getElementById("authWarning");
+    const btnSubmit       = document.getElementById("btnSubmit");
+    const btnBackToLoc    = document.getElementById("btnBackToLocation");
+
+    const resultEmoji     = document.getElementById("resultEmoji");
+    const resultTitle     = document.getElementById("resultTitle");
+    const resultDesc      = document.getElementById("resultDesc");
+    const resultBadge     = document.getElementById("resultBadge");
+    const resultStatus    = document.getElementById("resultStatus");
+    const voteCountLabel  = document.getElementById("voteCountLabel");
+    const voteBar         = document.getElementById("voteBar");
+    const voteHint        = document.getElementById("voteHint");
+    const btnReportAnother= document.getElementById("btnReportAnother");
+
+    const reportList      = document.getElementById("reportList");
+    const listEmpty       = document.getElementById("listEmpty");
+    const btnReloadList   = document.getElementById("btnReloadList");
+
+    const toast           = document.getElementById("toast");
+    const toastMsg        = document.getElementById("toastMsg");
+    const toastIcon       = document.getElementById("toastIcon");
+
+    // ── Estado ─────────────────────────────────────────────────────────
+    let selectedFile = null;
+    let selectedLat  = null;
+    let selectedLon  = null;
+    let pickMap      = null;
+    let pickMarker   = null;
+
+    // ── Toast ──────────────────────────────────────────────────────────
+    let toastTimer = null;
+    function showToast(msg, type = "info") {
+      const icons = { info: "info", ok: "check_circle", error: "error" };
+      const colors = { info: "#c5ebdb", ok: "#86efac", error: "#fca5a5" };
+      toastMsg.textContent  = msg;
+      toastIcon.textContent = icons[type] || "info";
+      toastIcon.style.color = colors[type] || "#c5ebdb";
+      toast.classList.remove("hidden-toast");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.add("hidden-toast"), 3000);
+    }
+
+    // ── UI helpers ─────────────────────────────────────────────────────
+    function setStep(n) {
+      [step1, step2, step3].forEach((el, i) => {
+        if (i + 1 < n)  el.className = "step-done  flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold";
+        if (i + 1 === n) el.className = "step-active flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold";
+        if (i + 1 > n)  el.className = "step-idle  flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold";
+      });
+    }
+
+    function showSection(name) {
+      [sectionPhoto, sectionLocation, sectionSend, sectionResult].forEach(s => s.classList.add("hidden"));
+      const map = { photo: sectionPhoto, location: sectionLocation, send: sectionSend, result: sectionResult };
+      map[name]?.classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // ── Autenticação ───────────────────────────────────────────────────
+    const userMenuBtn = document.getElementById("userMenuBtn");
+    const userDropdown = document.getElementById("userDropdown");
+    const dropdownUserName = document.getElementById("dropdownUserName");
+    const dropdownUserType = document.getElementById("dropdownUserType");
+    const dropdownLogoutBtn = document.getElementById("dropdownLogoutBtn");
+
+    if (user && token) {
+      userMenuBtn.classList.remove("hidden");
+      userMenuBtn.classList.add("flex");
+      userBadgeName.textContent = user.name || user.username || "Usuário";
+      dropdownUserName.textContent = user.name || user.username || "Usuário";
+      dropdownUserType.textContent = user.user_type === 2 ? "Especial" : user.user_type === 1 ? "Ativo" : "Pendente";
+    }
+
+    // Toggle dropdown
+    userMenuBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      userDropdown.classList.toggle("hidden");
+    });
+
+    // Fechar dropdown ao clicar fora
+    document.addEventListener("click", () => {
+      userDropdown.classList.add("hidden");
+    });
+
+    // Logout
+    dropdownLogoutBtn?.addEventListener("click", async () => {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } catch(_) {}
+      localStorage.removeItem("ANHANGA_TOKEN");
+      localStorage.removeItem("ANHANGA_USER");
+      window.location.href = "login.html";
+    });
+
+    // Logout button in nav
+    const navLogoutBtn = document.getElementById("navLogoutBtn");
+    navLogoutBtn?.addEventListener("click", async () => {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } catch(_) {}
+      localStorage.removeItem("ANHANGA_TOKEN");
+      localStorage.removeItem("ANHANGA_USER");
+      window.location.href = "login.html";
+    });
+
+    // ── Upload de foto ─────────────────────────────────────────────────
+    function handleFile(file) {
+      if (!file || !file.type.startsWith("image/")) {
+        showToast("Selecione uma imagem válida.", "error");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showToast("Imagem muito grande (máx. 10 MB).", "error");
+        return;
+      }
+      selectedFile = file;
+      const url = URL.createObjectURL(file);
+      photoPreview.src = url;
+      previewContainer.classList.remove("hidden");
+      dropzone.classList.add("hidden");
+      btnNextToLoc.disabled = false;
+    }
+
+    fileInput.addEventListener("change", () => handleFile(fileInput.files[0]));
+    dropzone.addEventListener("dragover",  e => { e.preventDefault(); dropzone.classList.add("drag-over"); });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag-over"));
+    dropzone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropzone.classList.remove("drag-over");
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    btnRemovePhoto.addEventListener("click", () => {
+      selectedFile = null;
+      photoPreview.src = "";
+      previewContainer.classList.add("hidden");
+      dropzone.classList.remove("hidden");
+      btnNextToLoc.disabled = true;
+      fileInput.value = "";
+    });
+
+    // ── Navegação entre passos ─────────────────────────────────────────
+    btnNextToLoc.addEventListener("click", () => {
+      showSection("location");
+      setStep(2);
+      initPickMap();
+    });
+
+    btnBackToPhoto.addEventListener("click", () => {
+      showSection("photo");
+      setStep(1);
+    });
+
+    btnNextToSend.addEventListener("click", () => {
+      showSection("send");
+      setStep(3);
+      reviewPhoto.src = photoPreview.src;
+      reviewPhotoName.textContent = selectedFile?.name || "foto.jpg";
+      reviewCoords.textContent    = `${selectedLat?.toFixed(5)}, ${selectedLon?.toFixed(5)}`;
+      if (!token) {
+        authWarning.classList.remove("hidden");
+        authWarning.classList.add("flex");
+        btnSubmit.disabled = true;
+      } else {
+        authWarning.classList.add("hidden");
+        btnSubmit.disabled = false;
+      }
+    });
+
+    btnBackToLoc.addEventListener("click", () => {
+      showSection("location");
+      setStep(2);
+    });
+
+    // ── Mapa de seleção ────────────────────────────────────────────────
+    function initPickMap() {
+      if (pickMap) return; // já inicializado
+
+      pickMap = L.map("pickMap", { zoomControl: true })
+        .setView([-5.0, -60.0], 6);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap",
+      }).addTo(pickMap);
+
+      pickMap.on("click", e => {
+        const { lat, lng } = e.latlng;
+        setCoords(lat, lng);
+        if (pickMarker) pickMap.removeLayer(pickMarker);
+        pickMarker = L.circleMarker([lat, lng], {
+          radius: 8, color: "#ef4444", fillColor: "#ef4444", fillOpacity: 0.8, weight: 2
+        }).addTo(pickMap);
+      });
+
+      // se já tiver coords (GPS), centraliza
+      if (selectedLat !== null) {
+        pickMap.setView([selectedLat, selectedLon], 13);
+      }
+    }
+
+    function setCoords(lat, lon) {
+      selectedLat = lat;
+      selectedLon = lon;
+      coordsDisplay.classList.remove("hidden");
+      coordsText.textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      btnNextToSend.disabled = false;
+    }
+
+    // ── GPS ────────────────────────────────────────────────────────────
+    btnGPS.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        showToast("Geolocalização não disponível neste dispositivo.", "error");
+        return;
+      }
+      btnGPS.textContent = "Obtendo localização...";
+      btnGPS.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          setCoords(lat, lon);
+          if (pickMap) {
+            pickMap.setView([lat, lon], 14);
+            if (pickMarker) pickMap.removeLayer(pickMarker);
+            pickMarker = L.circleMarker([lat, lon], {
+              radius: 8, color: "#ef4444", fillColor: "#ef4444", fillOpacity: 0.8, weight: 2
+            }).addTo(pickMap);
+          }
+          showToast("Localização obtida com sucesso!", "ok");
+          btnGPS.innerHTML = '<span class="material-symbols-outlined text-base">check_circle</span> Localização obtida';
+          btnGPS.disabled = false;
+        },
+        err => {
+          showToast("Não foi possível obter a localização.", "error");
+          btnGPS.innerHTML = '<span class="material-symbols-outlined text-base">my_location</span> Usar minha localização (GPS)';
+          btnGPS.disabled = false;
+        },
+        { timeout: 10000, enableHighAccuracy: true }
+      );
+    });
+
+    // ── Envio ──────────────────────────────────────────────────────────
+    btnSubmit.addEventListener("click", async () => {
+      if (!selectedFile || selectedLat === null || !token) return;
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin text-base">progress_activity</span> Enviando...';
+
+      try {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+
+        const url = `${API_BASE}/reportar/queimada?lat=${selectedLat}&lon=${selectedLon}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Erro ao enviar reporte.");
+
+        showResult(data);
+        loadReportList();
+      } catch (err) {
+        showToast(err.message || "Erro ao enviar.", "error");
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<span class="material-symbols-outlined text-base" style="font-variation-settings:\'FILL\' 1;">local_fire_department</span> Enviar Reporte';
+      }
+    });
+
+    function showResult(data) {
+      showSection("result");
+      setStep(3);
+
+      const statusMap = {
+        alerta:     { emoji: "⚠️", title: "Reporte registrado!", badge: "badge-alerta",    label: "Alerta" },
+        suspeito:   { emoji: "🟠", title: "Possível queimada!",  badge: "badge-suspeito",  label: "Suspeito" },
+        confirmado: { emoji: "🔥", title: "Queimada CONFIRMADA!",badge: "badge-confirmado",label: "Confirmado" },
+      };
+
+      const s = statusMap[data.nivel] || statusMap.alerta;
+      resultEmoji.textContent = s.emoji;
+      resultTitle.textContent = s.title;
+
+      const count = data.usuarios || 1;
+      voteCountLabel.textContent = `${count} / 3`;
+      const pct = Math.min(100, Math.round((count / 3) * 100));
+      voteBar.style.width = `${pct}%`;
+
+      if (count >= 3) {
+        resultDesc.textContent  = "Este local foi verificado por 3 ou mais usuários e aparecerá no mapa!";
+        voteHint.textContent    = "✓ Confirmado — visível no mapa";
+        voteBar.classList.replace("bg-tertiary", "bg-error");
+      } else {
+        const faltam = 3 - count;
+        resultDesc.textContent = `Seu reporte foi salvo. Faltam ${faltam} reporte${faltam > 1 ? "s" : ""} de outros usuários para confirmação.`;
+        voteHint.textContent   = `Faltam ${faltam} reporte${faltam > 1 ? "s" : ""} para confirmação`;
+      }
+
+      resultBadge.className = `inline-flex items-center gap-2 rounded-full px-4 py-2 font-bold text-sm ${s.badge}`;
+      resultStatus.textContent = s.label;
+    }
+
+    btnReportAnother.addEventListener("click", () => {
+      // reseta estado
+      selectedFile = null;
+      selectedLat  = null;
+      selectedLon  = null;
+      photoPreview.src = "";
+      previewContainer.classList.add("hidden");
+      dropzone.classList.remove("hidden");
+      btnNextToLoc.disabled = true;
+      coordsDisplay.classList.add("hidden");
+      btnNextToSend.disabled = true;
+      fileInput.value = "";
+      if (pickMarker && pickMap) pickMap.removeLayer(pickMarker);
+      pickMarker = null;
+
+      showSection("photo");
+      setStep(1);
+    });
+
+    // ── Lista de reportes recentes ─────────────────────────────────────
+    async function loadReportList() {
+      try {
+        const res  = await fetch(`${API_BASE}/reportar/queimadas/todos`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.data || []);
+
+        reportList.innerHTML = "";
+        if (!list.length) {
+          reportList.innerHTML = `<p class="text-sm text-center text-on-surface-variant py-4">Nenhum reporte registrado ainda.</p>`;
+          return;
+        }
+
+        list.slice(0, 20).forEach(r => {
+          const statusClasses = {
+            alerta:     "badge-alerta",
+            suspeito:   "badge-suspeito",
+            confirmado: "badge-confirmado",
+          };
+          const statusLabels  = { alerta:"Alerta", suspeito:"Suspeito", confirmado:"Confirmado" };
+          const cls   = statusClasses[r.status] || "badge-alerta";
+          const label = statusLabels[r.status]  || r.status;
+
+          const count   = r.vote_count || (r.users || []).length || 0;
+          const pct     = Math.min(100, Math.round((count / 3) * 100));
+          const barClr  = r.status === "confirmado" ? "#ef4444" : "#ebc165";
+
+          const item = document.createElement("div");
+          item.className = "rounded-xl bg-surface-container-low p-3 space-y-2";
+          item.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="material-symbols-outlined text-error text-base shrink-0" style="font-variation-settings:'FILL' 1;">local_fire_department</span>
+                <span class="text-xs font-mono text-on-surface truncate">${Number(r.lat).toFixed(4)}, ${Number(r.lon).toFixed(4)}</span>
+              </div>
+              <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${cls}">${label}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all" style="width:${pct}%;background:${barClr}"></div>
+              </div>
+              <span class="text-[10px] text-on-surface-variant shrink-0">${count}/3 reportes</span>
+            </div>
+            ${(r.users||[]).length ? `<p class="text-[10px] text-on-surface-variant">Por: ${r.users.join(", ")}</p>` : ""}
+          `;
+          reportList.appendChild(item);
+        });
+      } catch(err) {
+        reportList.innerHTML = `<p class="text-sm text-center text-on-surface-variant py-4">Erro ao carregar reportes.</p>`;
+      }
+    }
+
+    btnReloadList.addEventListener("click", loadReportList);
+
+    // ── Init ───────────────────────────────────────────────────────────
+    setStep(1);
+    showSection("photo");
+    loadReportList();
+
+  })();
+  </script>
+
+</body>
+</html>
